@@ -108,11 +108,37 @@ runcmd(struct cmd *cmd)
 
   case '|':
     pcmd = (struct pipecmd*)cmd;
-    fprintf(stderr, "pipe not implemented\n");
-    // Your code here ...
+    if(pipe(p) < 0){
+        perror("pipe failed");
+        exit(1);
+    }
+    if((r = fork()) < 0){
+        perror("fork failed");
+        exit(1);
+    }
+    if(r == 0){
+        // child
+        close(p[0]);
+        if(dup2(p[1], 1) < 0){
+            perror("dup2 failed");
+            exit(1);
+        }
+        close(p[1]);
+        runcmd(pcmd->left);
+        exit(0);
+    } else {
+        // parent
+        close(p[1]);
+        if(dup2(p[0], 0) < 0){
+            perror("dup2 failed");
+            exit(1);
+        }
+        close(p[0]);
+        runcmd(pcmd->right);
+        exit(0);
+    }
     break;
   }    
-  exit(0);
 }
 
 int readchar(int fd) {

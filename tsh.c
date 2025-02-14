@@ -62,15 +62,47 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       exit(0);
-    fprintf(stderr, "exec not implemented\n");
-    // Your code here ...
+    // Prepend "/bin/" if there's no slash
+    if (!strchr(ecmd->argv[0], '/')) {
+        static char path[128];
+        snprintf(path, sizeof(path), "/bin/%s", ecmd->argv[0]);
+        ecmd->argv[0] = path;
+    }
+    execv(ecmd->argv[0], ecmd->argv);
+    perror("execv failed");
+    exit(1);
     break;
 
   case '>':
+    rcmd = (struct redircmd*)cmd;
+    {
+        int fd = open(rcmd->file, rcmd->mode, 0644);
+        if (fd < 0) {
+            perror("open failed");
+            exit(1);
+        }
+        if (dup2(fd, rcmd->fd) < 0) {
+            perror("dup2 failed");
+            exit(1);
+        }
+        close(fd);
+    }
+    runcmd(rcmd->cmd);
+    break;
   case '<':
     rcmd = (struct redircmd*)cmd;
-    fprintf(stderr, "redir not implemented\n");
-    // Your code here ...
+    {
+        int fd = open(rcmd->file, rcmd->mode, 0666);
+        if (fd < 0) {
+            perror("open failed");
+            exit(1);
+        }
+        if (dup2(fd, rcmd->fd) < 0) {
+            perror("dup2 failed");
+            exit(1);
+        }
+        close(fd);
+    }
     runcmd(rcmd->cmd);
     break;
 
